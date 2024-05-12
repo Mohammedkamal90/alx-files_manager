@@ -1,41 +1,24 @@
 const dbClient = require('../utils/db');
 const fs = require('fs');
 const mime = require('mime-types');
+const Bull = require('bull');
+
+const fileQueue = new Bull('fileQueue');
 
 class FilesController {
-  static async getFile(req, res) {
-    const { id } = req.params;
-    const { user } = req;
+  static async postUpload(req, res) {
+    // your existing code to create a new file in DB and in disk
 
-    if (!user) {
-      res.status(404).json({ error: 'Not found' });
-      return;
+    // Check if the file type is image
+    if (req.body.type === 'image') {
+      // Add a job to the queue to generate thumbnails
+      fileQueue.add({
+        userId: req.user._id,
+        fileId: newFile._id
+      });
     }
 
-    const file = await dbClient.getFileById(id);
-
-    if (!file || (!file.isPublic && file.userId !== user._id)) {
-      res.status(404).json({ error: 'Not found' });
-      return;
-    }
-
-    if (file.type === 'folder') {
-      res.status(400).json({ error: "A folder doesn't have content" });
-      return;
-    }
-
-    const filePath = file.localPath;
-
-    if (!fs.existsSync(filePath)) {
-      res.status(404).json({ error: 'Not found' });
-      return;
-    }
-
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    const mimeType = mime.lookup(file.name);
-
-    res.setHeader('Content-Type', mimeType);
-    res.send(fileContent);
+    // return response
   }
 }
 
