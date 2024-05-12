@@ -1,31 +1,48 @@
-const dbClient = require('../utils/db');
-const redisClient = require('../utils/redis');
+const dbClient = require('../utils/dbClient');
+const userQueue = require('../utils/userQueue');
 
-class UsersController {
-  // Method to get user information based on token
-  static async getMe(req, res) {
-    const { token } = req.headers;
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
+async function postUser(req, res) {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing email or password' });
     }
 
-    try {
-      const userId = await redisClient.get(`auth_${token}`);
-      if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      const user = await dbClient.getUserById(userId);
-      if (!user) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      return res.status(200).json({ id: user._id, email: user.email });
-    } catch (error) {
-      console.error('Error getting user information:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+    const existingUser = await dbClient.findUserByEmail(email);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already exists' });
     }
+
+    const newUser = await dbClient.createUser(email, password);
+
+    // Add job to send welcome email
+    userQueue.add({ userId: newUser.id });
+
+    return res.status(201).json({ id: newUser.id, email: newUser.email });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 }
 
-module.exports = UsersController;
+async function sendWelcomeEmail(job) {
+  try {
+    const { userId } = job.data;
+
+    if (!userId) {
+      throw new Error('Missing userId');
+    }
+
+    const user = await dbClient.findUserById(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // In real implementation, send a welcome email using a third-party service like Mailgun
+    console.log(`Welcome ${user.email}!`);
+  } catch (error) {
+    console.error('Error sending welcome email:', error);
+  }
+}
+
+module.exports = { postUser, sendWelcomeEmail };
