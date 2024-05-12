@@ -1,12 +1,12 @@
-import express from 'express';
-import AppController from '../controllers/AppController'; // Import the controller
-import UsersController from '../controllers/UsersController'; // Import UsersController
+const express = require('express');
+const UsersController = require('../controllers/UsersController');
+const AuthController = require('../controllers/AuthController');
 
 const router = express.Router();
 
-// Define routes
-router.get('/status', AppController.getStatus); // GET /status route handled by getStatus method in AppController
-router.get('/stats', AppController.getStats); // GET /stats route handled by getStats method in AppController
-router.post('/users', UsersController.postNew); // Add new endpoint for creating users
+// Define endpoints for authentication
+router.get('/connect', AuthController.connect);
+router.get('/disconnect', AuthController.disconnect);
+router.get('/users/me', UsersController.getMe);
 
-export default router;
+module.exports = router;
