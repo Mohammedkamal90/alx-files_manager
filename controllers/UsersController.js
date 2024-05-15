@@ -1,48 +1,24 @@
-const dbClient = require('../utils/dbClient');
-const userQueue = require('../utils/userQueue');
+import { v4 as uuidv4 } from 'uuid';
+import sha1 from 'sha1';
+import dbClient from '../utils/db';
 
-async function postUser(req, res) {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Missing email or password' });
-    }
+const postNew = async (req, res) => {
+  const { email, password } = req.body;
 
-    const existingUser = await dbClient.findUserByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already exists' });
-    }
+  if (!email) return res.status(400).json({ error: 'Missing email' });
+  if (!password) return res.status(400).json({ error: 'Missing password' });
 
-    const newUser = await dbClient.createUser(email, password);
+  const userExists = await dbClient.db.collection('users').findOne({ email });
+  if (userExists) return res.status(400).json({ error: 'Already exist' });
 
-    // Add job to send welcome email
-    userQueue.add({ userId: newUser.id });
+  const newUser = {
+    email,
+    password: sha1(password),
+  };
 
-    return res.status(201).json({ id: newUser.id, email: newUser.email });
-  } catch (error) {
-    console.error('Error creating user:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
-  }
-}
+  const { insertedId } = await dbClient.db.collection('users').insertOne(newUser);
 
-async function sendWelcomeEmail(job) {
-  try {
-    const { userId } = job.data;
+  return res.status(201).json({ id: insertedId, email });
+};
 
-    if (!userId) {
-      throw new Error('Missing userId');
-    }
-
-    const user = await dbClient.findUserById(userId);
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    // In real implementation, send a welcome email using a third-party service like Mailgun
-    console.log(`Welcome ${user.email}!`);
-  } catch (error) {
-    console.error('Error sending welcome email:', error);
-  }
-}
-
-module.exports = { postUser, sendWelcomeEmail };
+export { postNew };

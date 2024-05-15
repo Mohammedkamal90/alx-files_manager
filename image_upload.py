@@ -1,16 +1,25 @@
-import base64
 import requests
-import sys
 
-file_path = sys.argv[1]
-file_name = file_path.split('/')[-1]
+# Define the URL of the server endpoint for file upload
+upload_url = 'http://your_server_url/upload'
 
-file_encoded = None
-with open(file_path, "rb") as image_file:
-    file_encoded = base64.b64encode(image_file.read()).decode('utf-8')
+# Define the path to the image file you want to upload
+image_path = 'path_to_your_image_file.jpg'
 
-r_json = { 'name': file_name, 'type': 'image', 'isPublic': True, 'data': file_encoded, 'parentId': sys.argv[3] }
-r_headers = { 'X-Token': sys.argv[2] }
+# Open the image file in binary mode
+with open(image_path, 'rb') as file:
+    # Prepare the payload for the POST request
+    files = {'file': file}
 
-r = requests.post("http://0.0.0.0:5000/files", json=r_json, headers=r_headers)
-print(r.json())
+    try:
+        # Send the POST request to upload the file
+        response = requests.post(upload_url, files=files)
+
+        # Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            print("File uploaded successfully.")
+        else:
+            print("Error:", response.text)
+    except requests.exceptions.RequestException as e:
+        # Handle any network-related errors
+        print("Error:", e)

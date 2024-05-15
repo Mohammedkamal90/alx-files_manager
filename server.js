@@ -1,12 +1,32 @@
-import express from 'express';
-import routes from './routes'; // Import routes from routes/index.js
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Get port from environment variable or default to 5000
+const PORT = process.env.PORT || 3000;
 
-app.use('/', routes); // Mount routes at root path '/'
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Set up Multer storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}${ext}`);
+  },
 });
 
+const upload = multer({ storage: storage });
+
+// Route for file upload
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  res.status(200).json({ message: 'File uploaded successfully', filename: req.file.filename });
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
